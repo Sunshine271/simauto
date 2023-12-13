@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title> SimAuto </title>
+    <style>
+        * { margin: 6px; font-size: 14px;}
+        html, body {margin:0px;}
+        #body_span, #pred_div, form { display: flex; flex-direction: column; align-items: center;}
+        canvas { border: 2px solid lightgrey; }
+        table, th, td, tr { 
+            border: 1px solid; border-collapse: collapse; padding: 3px 8px 3px 8px; 
+            align-items: center; text-align: center;
+        }
+        hr { width: 1600px; background-color: lightgrey; border: none; height: 2px; justify-content: left; margin: 24px; }
+        button, input[type="button"], select  { padding: 8px; }
+        h1 { color: white; }
+        nav { background-color: black; width: 100%; text-align: left; margin:0px; line-height: 300%;}
+        dialog { position: absolute; }
+        #instructions * {font-size: 20px;}
+    </style>
+</head>
+<body>
+    <!-- Nav Bar -->
+    <nav style="display: flex; justify-content: space-around;">
+        <span style="font-size: 2em; color: white">DisMath</span>
+        <button id="instructions_toggle">Убрать инструкцию</button>
+    </nav>
+
+
+<span id="body_span">
+
+    <div id="instructions" style="width:70%;">
+        <p>Инструкции по применению:</p>
+        <span>Общие шаги для работы с программой:</span>
+        <ul>
+            <li>Изменить параметры автоматов и их таблицы в сегментах "коллектив" и "автомат"</li>
+            <li>Нажать на кнопку "запустить симуляцию", чтобы изменения вошли в силу. При этом симуляция будет начата заново.</li>
+            <li>После нажатия на "запустить симуляцию" появится сегмент визуализации. Имеется возможность автовоспроизведения вперед, назад, а также возможность ручного воспроизведения. Параметры обоих видов воспроизведений выбираются из списков правее.
+                автовоспроизведение остановится, если программа заметит, что автоматы стоят на местах, не меняя состояний.
+            </li>
+        </ul>
+        <span>Формат записи предикатов(условий)</span>
+        <ul>
+            <li>Условиями могут быть ДНФ, где вместо переменных участвуют предикаты W{id}_P{pos} или W{id}_P{pos}_Q{state}</li>
+            <li>Вместо {id} ставится номер автомата, вместо {pos} ставится расстояние от автомата обладающего условием до автомата с отмеченным номером, вместо {state} ставится номер состояния отмеченного автомата</li>
+            <li>W{id}_P{pos} = 1, когда автомат под номером {id} находится на расстоянии {pos} от автомата обладающего условием, иначе 0</li>
+            <li>W{id}_P{pos}_Q{state} = 1, когда W{id} находится на расстоянии {pos} от обладателя условия и в состоянии {state}</li>
+            <li>В этой программе функция НЕ обозначается !, функция И обозначается &, ИЛИ обозначается |. Никакие другие символы использовать нельзя, в том числе скобки. Тем не менее можно использовать сколько-угодно пробелов между знаками !, &, | и предикатами.</li>
+            <li>Пример: W0_P0 & !W1_P1 | !W0_P0_Q0 & !W1_P1_Q1</li>
+        </ul>
+    </div>
+    <hr id="instructions_hr">
+    
+    <!-- Visualizer -->
+    <div id="vis_canvas_sect" style="display:none;"><canvas id="vis_canvas"></canvas></div>
+    <table id="state_view_table" style="border:none; margin-inline: auto; display: none">
+        <thead>
+            <tr id="state_view_head">
+                <th>Автоматы</th>
+            </tr>
+        </thead>
+        <tbody>  
+            <tr id="state_view_state">
+                <td>Состояние</td>
+            </tr>
+            <tr id="state_view_pos">
+                <td>Положение<td>
+            </tr>
+        </tbody>
+    </table>
+    <div id="vis_controls" style="display:none; justify-content: space-around; width: 75%">
+        <span>
+            <button id="vis_backward">Скачок назад</button>
+            <input type="button" id="play_pause" value="Воспроизвести">
+            <button id="vis_forward">Скачок вперед</button>
+        </span>
+        <span>
+            <label for="current_tick">Текущий шаг:</label>
+            <input name="current_tick" id="current_tick" value="0" readonly style="border:none; width: 6em" tabindex="-1" disabled>
+            <label for="playback_speed">Скорость воспроизведения:</label>
+            <select id="playback_speed" name="playback_speed">
+                <option value="1">вперед, 1  ш/сек</option>
+                <option value="2">вперед, 2  ш/сек</option>
+                <option value="5">вперед, 5  ш/сек</option>
+                <option value="10">вперед, 10  ш/сек</option>
+                <option value="50">вперед, 50  ш/сек</option>
+                <option value="-1">назад, 1 ш/сек</option>
+                <option value="-2">назад, 2 ш/сек</option>
+                <option value="-5">назад, 5 ш/сек</option>
+                <option value="-10">назад, 10 ш/сек</option>
+                <option value="-50">назад, 50 ш/сек</option>
+            </select>
+            <label for="jump_len">Величина скачка:</label>
+            <select id="jump_len" name="jump_len">
+                <option value = "1">1 ш</option>
+                <option value = "2">2 ш</option>
+                <option value = "5">5 ш</option>
+                <option value = "10">10 ш</option>
+                <option value = "20">20 ш</option>
+                <option value = "50">50 ш</option>
+                <option value = "100">100 ш</option>
+            </select>
+        </span>
+    </div>
+    <button id="visualization_toggle">Показать визуализацию</button>
+    
+    <hr id="vis_hr" style="display: none;">
+    
+    <div style="display:flex;align-content: center; text-align:center">
+        <!-- Collective view -->
+        <div style="flex:3">
+            <div style="display: flex; justify-content: space-around;">
+                <span style="font-size: 1.75em">Коллектив</span>
+                <span>
+                    <label for="lab_type">Тип лабиринта:</label>
+                    <select id="lab_type" name="lab_type">
+                        <option value="0">Прямая</option>
+                        <option value="1">Луч</option>
+                    </select>
+                </span>
+            </div>
+            <table id="coll_view">
+                <thead>
+                    <tr>
+                        <th>Номер автомата</th>
+                        <th>Начальная позиция</th>
+                        <th>Кол-во состояний</th>
+                        <th>Радиус обзора</th>
+                        <th>Скорость</th>
+                        <th>Действия</th>
+                    </tr>
+                </thead>
+            </table>
+            <div>
+                <button id="coll_view_add_auto">Добавить автомат</button>
+                <button id="coll_view_del_auto">Удалить последний автомат</button>
+            </div>
+            <div>
+                <button id="compile">Запустить симуляцию</button>
+                <button id="save">Сохранить</button>
+                <button id="load">Загрузить</button>
+            </div>
+        </div>
+        
+        <div style="flex:7">
+            <!-- Edit Automaton -->
+            <div style="display:flex; justify-content: space-around;">
+                <span style="font-size: 1.75em;">Автомат</span>
+                <span id="edit_list">
+                    <label for="edit_list">Выбрать автомат:</label>
+                </span>
+            </div>
+            <table id="edit_table" style="margin-inline: auto;">
+                <thead>
+                    <tr>
+                        <th>Номер линии</th>
+                        <th>Вход</th>
+                        <th>Условие</th>
+                        <th>Следующее состояние</th>
+                        <th>Перемещение</th>
+                        <th>Действия</th>
+                    </tr>
+                </thead>
+            </table> 
+            <div>
+                <input type="button" id="edit_add" value="Добавить инструкцию">
+                <span id = "edit_inst_selector">
+                    <label for="inst_selector">Удалить инструкцию:</label>
+                </span>
+                <input type="button" id="edit_del" value="Удалить">
+            </div>
+        </div>
+    </div>
+    
+</span>
+    <footer style="height:400px"></footer>
+
+    <dialog id="change_instruction">
+        <form id="change_instruction_form">
+            <span id="left_span">
+                <label for="left_select">Свободно слева:</label>
+            </span>
+            <span id="right_span">
+                <label for="right_select">Свободно справа:</label>
+            </span>
+            <span id="state_span">
+                <label for="state_select">Состояние:</label>
+            </span>
+            <div id="pred_div">
+                <h3>Условия:</h3>
+            </div>
+            <span id="next_state_span">
+                <label for="next_state_select">Следующее состояние:</label>
+            </span>
+            <span id="move_span">
+                <label for="move_select">Перемещение:</label>
+            </span>
+        </form>
+    </dialog>
+    <dialog id="change_automaton">
+        <form id="change_automaton_form">
+            <input id="auto_id" value="0" hidden>
+            <span id="pos_span">
+                <label for="pos_input">Начальное положение:</label>
+            </span>
+            <span id="states_n_span">
+                <label for="states_n_input">Кол-во состояний:</label>
+            </span>
+            <span id="r_span">
+                <label for="r_input">Радиус обзора:</label>
+            </span>
+            <span id="v_span">
+                <label for="v_input">Скорость передвижения:</label>
+            </span>
+        </form>
+    </dialog>
+    
+    <dialog id="save_dialogue"></dialog>
+    <dialog id="load_dialogue"></dialog>
+    
+    
+    <script src="simulation.js"></script>
+    <script src="visualization.js"></script>
+    <script src="core.js"></script>
+</body>
+</html>
